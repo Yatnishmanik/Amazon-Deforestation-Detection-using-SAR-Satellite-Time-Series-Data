@@ -1,0 +1,483 @@
+================================================================================
+ INTERVIEW QUESTIONS — AMAZON DEFORESTATION DETECTION THESIS
+ Topic: Deforestation Detection in the Amazon with Sentinel-1 SAR Image Time Series
+ Covers: Basic | Medium | Difficult
+================================================================================
+
+
+================================================================================
+ SECTION 1: BASIC LEVEL QUESTIONS
+ (Understanding concepts, definitions, and purpose)
+================================================================================
+
+--- TOPIC: Project Overview ---
+
+Q1.  What is the main goal of your thesis project?
+A:   To detect deforestation in the Amazon rainforest automatically by applying
+     a deep learning model (UTAE) on Sentinel-1 SAR satellite image time series,
+     outperforming traditional statistical and machine learning methods.
+
+Q2.  What does "deforestation detection" mean in the context of this project?
+A:   It means identifying pixels in satellite images that transitioned from
+     "forested" to "deforested" state over a given time period — essentially
+     a change detection problem.
+
+Q3.  Why is Amazon deforestation monitoring important?
+A:   Because the Amazon is the world's largest rainforest. Its loss accelerates
+     global warming, causes irreversible biodiversity damage, disrupts the water
+     cycle, and affects indigenous communities.
+
+Q4.  What does SAR stand for, and why is it used here?
+A:   Synthetic Aperture Radar. It uses microwave signals to image the Earth's
+     surface, works both day and night, and — crucially — penetrates cloud cover.
+     This makes it ideal for tropical regions like the Amazon, which are
+     frequently covered by clouds.
+
+Q5.  What satellite provides the SAR data used in this project?
+A:   Sentinel-1, part of the ESA (European Space Agency) Copernicus programme.
+     It operates in the C-Band microwave frequency.
+
+Q6.  What are the two SAR polarization channels used, and what are their
+     typical value ranges in this project?
+A:   - VV (Vertical transmit / Vertical receive): approx. -20 dB to +5 dB
+     - VH (Vertical transmit / Horizontal receive): approx. -26 dB to -1 dB
+
+Q7.  What is the name of the dataset created for this project?
+A:   BraDD-S1TS (Brazilian Deforestation Detection - Sentinel-1 Time Series).
+     It contains approximately 25,000 image sequences from the Brazilian Amazon.
+
+Q8.  Where is the BraDD-S1TS dataset publicly available?
+A:   On Zenodo (https://zenodo.org/record/8060250).
+
+Q9.  What is a time series in the context of satellite imagery?
+A:   A sequence of satellite images taken over the same geographic area at
+     different points in time, allowing the model to observe how the landscape
+     changes over months or years.
+
+Q10. What is the primary evaluation metric used to measure model performance?
+A:   IoU — Intersection over Union (also known as the Jaccard Index).
+     It measures the overlap between predicted deforestation masks and ground truth.
+
+Q11. By how many percentage points does the proposed model outperform
+     existing methods in IoU?
+A:   13.7 percentage points in IoU.
+
+Q12. What are the two output classes the model predicts?
+A:   Forest (unchanged) and Deforested (changed/cleared).
+
+Q13. What framework is used to train the model?
+A:   PyTorch and PyTorch Lightning.
+
+Q14. What tool is used for experiment tracking and logging?
+A:   Weights & Biases (WandB) and TensorBoard.
+
+Q15. What is the entry point of the project code?
+A:   run_via_parser.py — it handles command-line argument parsing, logger
+     setup, trainer initialization, checkpointing, training, and testing.
+
+
+--- TOPIC: Deep Learning Basics ---
+
+Q16. What is a neural network?
+A:   A computational model inspired by the human brain, composed of layers of
+     interconnected nodes (neurons) that learn to map inputs to outputs by
+     adjusting their weights through training.
+
+Q17. What is the difference between supervised and unsupervised learning?
+A:   In supervised learning, the model is trained on labeled input-output pairs.
+     In unsupervised learning, no labels are provided; the model finds patterns
+     on its own. This project uses supervised learning (labeled deforestation masks).
+
+Q18. What is a loss function?
+A:   A function that measures the error between the model's predictions and the
+     ground truth labels. The optimizer minimizes this loss during training.
+
+Q19. What loss functions are used in this project?
+A:   CrossEntropy Loss, Dice Loss, and Focal Loss (defined in source/loss/).
+
+Q20. What optimizer is used and what does it do?
+A:   AdamW — a variant of Adam optimizer with weight decay for regularization.
+     It adaptively adjusts learning rates per parameter.
+
+Q21. What is a batch in deep learning training?
+A:   A subset of the training data processed together in a single forward and
+     backward pass. Using mini-batches (instead of the full dataset) makes
+     training computationally feasible.
+
+Q22. What is data normalization and why is it important?
+A:   Scaling input data to a standard range/distribution (e.g., zero mean, unit
+     variance). It speeds up training convergence and prevents certain features
+     from dominating due to scale differences.
+
+Q23. What normalization methods are implemented in this project?
+A:   ZScore (mean/std normalization), MinMax normalization, and a domain-specific
+     SAR normalization based on fixed VV/VH value ranges.
+
+Q24. What is overfitting?
+A:   When a model learns the training data too well — including its noise — and
+     fails to generalize to unseen data. Signs: high training accuracy,
+     low validation/test accuracy.
+
+Q25. What is data augmentation?
+A:   Techniques applied to training data to artificially increase its diversity
+     (e.g., flipping, rotation, temporal dropout), which helps the model generalize.
+
+
+================================================================================
+ SECTION 2: MEDIUM LEVEL QUESTIONS
+ (Architecture, pipeline, and implementation details)
+================================================================================
+
+--- TOPIC: Model Architecture (UTAE) ---
+
+Q26. What does UTAE stand for?
+A:   U-Net with Temporal Attention Encoder. It is an attention-based architecture
+     designed to process spatial-temporal satellite image sequences.
+
+Q27. What is U-Net and where does it come from originally?
+A:   U-Net is a convolutional neural network architecture originally designed for
+     biomedical image segmentation. It features a symmetric encoder-decoder
+     structure with skip connections that preserve spatial detail.
+
+Q28. What is the role of the encoder in U-Net?
+A:   The encoder (contracting path) progressively downsamples the input image
+     to extract high-level feature representations at multiple scales.
+
+Q29. What is the role of the decoder in U-Net?
+A:   The decoder (expanding path) upsamples the feature maps back to the original
+     resolution, combining them with skip connections from the encoder to
+     produce a precise segmentation mask.
+
+Q30. What makes UTAE different from standard U-Net?
+A:   UTAE includes a Temporal Attention Encoder that processes sequences of images
+     over time. It uses attention weights to focus on the most relevant time steps
+     for a given prediction, making it suitable for time-series satellite imagery.
+
+Q31. What is an attention mechanism in neural networks?
+A:   A mechanism that allows the model to assign different importance weights to
+     different parts of the input (spatial regions or temporal steps), helping
+     it focus on what is most relevant for the prediction.
+
+Q32. Why is temporal attention especially important for deforestation detection?
+A:   Because deforestation is a temporal event — it is identified by change over
+     time. Temporal attention lets the model focus on the time steps where
+     significant land cover changes occurred, rather than treating all images equally.
+
+Q33. What are the input dimensions to the Network's forward pass?
+A:   - images:      [B, T, C, H, W] — Batch, Time steps, Channels, Height, Width
+     - days:        [B, T]          — acquisition day (relative) for each image
+     - target_days: [B, t]          — target label days
+
+
+--- TOPIC: Forward Function Strategies ---
+
+Q34. What are the three forward function types implemented?
+A:   1. segment_wise   — Processes sub-sequences for each consecutive pair of
+                         target days, using a +/-30-day error buffer.
+     2. begin_to_end   — Processes images from the first to the last target day
+                         as a single sequence.
+     3. use_all_info   — Uses all available images regardless of target days
+                         (vanilla/baseline approach).
+
+Q35. What is the purpose of the _error_days = 30 parameter?
+A:   It adds a +/-30-day buffer around the target label dates when selecting which
+     images to include in a sub-sequence. This accounts for timing uncertainty
+     in when deforestation actually occurred vs. when it was labeled.
+
+Q36. Explain how _segment_wise works step by step.
+A:   For each consecutive pair of target days (start, end):
+     1. Expand the window: start -= 30, end += 30
+     2. Create a boolean mask of images falling within that window
+     3. Extract those images and their day timestamps
+     4. Pass them through the underlying UTAE network -> get a [B, L, H, W] mask
+     5. Stack all segment outputs -> final shape [B, t-1, L, H, W]
+
+Q37. What is change detection and how is it implemented here?
+A:   Change detection determines whether a pixel's state changed between two
+     time steps (e.g., Forest -> Deforested). In forward_function.py, the
+     _change_detection logic compares predictions across consecutive timestamps
+     to produce a binary change map (change target: 0 = no change, 1 = changed).
+
+
+--- TOPIC: Dataset & Data Pipeline ---
+
+Q38. What are the two data splits in BraDD-S1TS and what do they represent?
+A:   "close" and "far" splits — they refer to spatial proximity of test
+     samples to training samples, evaluating geographic generalization ability.
+
+Q39. What does TemporalDropout do and why is it useful?
+A:   It randomly or deterministically reduces the number of time steps in a
+     sequence during training. Random temporal dropout acts as data augmentation,
+     improving model generalization by training with variable-length sequences.
+
+Q40. How are missing/padding timestamps handled in the dataset?
+A:   Timestamps (ImageDays) start at 1 and use 0-padding for missing data,
+     allowing variable-length sequences to be batched together.
+
+Q41. What is collate_tensor used for in the data module?
+A:   To combine tensors of variable sequence lengths into a single batch tensor
+     (applying padding where necessary), since different samples may have
+     different numbers of images in their time series.
+
+Q42. Why are statistics calculated only on the training set?
+A:   To prevent data leakage — if normalization statistics are computed including
+     the validation/test set, the model indirectly "sees" test data, leading to
+     overoptimistic performance estimates.
+
+Q43. What does meta.csv contain, and how is it used?
+A:   It contains metadata for each sample in the dataset, including a "file"
+     column (the path to the .pt file) and split columns (e.g., close_set,
+     far_set) indicating whether a sample belongs to train/val/test.
+
+
+--- TOPIC: Training & Evaluation ---
+
+Q44. What is PyTorch Lightning and why was it used?
+A:   PyTorch Lightning is a high-level wrapper around PyTorch that abstracts
+     away boilerplate code (training loops, logging, checkpointing, GPU
+     management), allowing researchers to focus on model development.
+
+Q45. What happens during a training_step in the Experiment class?
+A:   A batch of SAR images is passed through the Network. The ForwardFunction
+     computes predictions, which are compared to targets via the loss function.
+     The loss is backpropagated and the optimizer updates the model weights.
+
+Q46. What does IoU (Intersection over Union) measure, and how is it calculated?
+A:   IoU measures the overlap between the predicted mask and the ground truth:
+     IoU = (Predicted INTERSECT Ground Truth) / (Predicted UNION Ground Truth)
+     A value of 1.0 = perfect prediction; 0.0 = no overlap.
+
+Q47. Why is IoU preferred over simple pixel accuracy for this task?
+A:   Because deforestation is rare — most pixels remain forest. Simple accuracy
+     is misleading (a model predicting "all forest" would score very high).
+     IoU penalizes models that miss the deforested class.
+
+Q48. What is a learning rate scheduler and is one used here?
+A:   A scheduler adjusts the learning rate during training (e.g., decay after
+     each epoch). The Experiment class includes an LR scheduler for AdamW.
+
+Q49. What is model checkpointing and why is it important?
+A:   Saving the model's weights at certain points during training (e.g., when
+     validation IoU improves). It ensures you can restore the best-performing
+     model even if training continues to overfit.
+
+
+================================================================================
+ SECTION 3: DIFFICULT LEVEL QUESTIONS
+ (Deep technical understanding, design decisions, and research-level insights)
+================================================================================
+
+--- TOPIC: Advanced Architecture ---
+
+Q50. Explain the role of skip connections in U-Net and why they are critical
+     for deforestation detection at fine spatial scales.
+A:   Skip connections directly link encoder feature maps to corresponding decoder
+     layers. They preserve fine-grained spatial information (e.g., field boundaries,
+     small clearings) that would otherwise be lost during downsampling. This is
+     critical for detecting small or irregularly shaped deforestation patches at
+     pixel level.
+
+Q51. How does the temporal attention encoder differ from a standard LSTM or
+     GRU for temporal modeling?
+A:   LSTMs/GRUs process sequences sequentially (step-by-step), which is slow and
+     can struggle with long-range temporal dependencies. The Temporal Attention
+     Encoder processes all time steps in parallel using attention weights, allowing
+     the model to directly and efficiently focus on any relevant time step regardless
+     of its distance in the sequence, and better handles irregularly spaced acquisitions.
+
+Q52. How does UTAE handle irregularly spaced satellite acquisitions (non-uniform
+     temporal gaps between images)?
+A:   Each image is paired with its acquisition day (a relative day number).
+     These day values are fed into the temporal attention encoder alongside the
+     images, giving the model explicit knowledge of when each observation was made,
+     allowing it to account for varying time gaps rather than assuming uniform spacing.
+
+Q53. Why is the SAR-specific normalization (fixed VV/VH ranges) preferable
+     to learned statistics (ZScore) in some scenarios?
+A:   SAR backscatter values have physically meaningful ranges determined by
+     sensor properties and land cover. Using fixed physics-based normalization
+     is more robust when the training dataset may not be representative of all
+     value distributions (e.g., when deploying to a new region), because the
+     normalization does not depend on training data statistics.
+
+Q54. Explain potential failure modes of the change detection approach.
+A:   - Seasonal variation: SAR backscatter changes with soil moisture, vegetation
+       phenology, or flooding, which could be misclassified as deforestation.
+     - Temporal gaps: If deforestation and regrowth both occur between two images,
+       the change may be missed entirely.
+     - Small clearings: If a deforested area is smaller than the model's effective
+       spatial resolution, it may be missed.
+     - Label noise: Human-annotated deforestation dates may not precisely match
+       the actual event, introducing noise into the training signal.
+
+Q55. What is the Dice Loss and why might it be used alongside CrossEntropy for
+     this task?
+A:   Dice Loss = 1 - 2*(|Pred INTERSECT GT|)/(|Pred| + |GT|).
+     It directly optimizes the F1/overlap score and is robust to class imbalance.
+     Since deforested pixels are rare compared to forest pixels, Dice Loss encourages
+     the model to correctly predict the minority class. CrossEntropy alone may lead
+     the model to ignore rare classes.
+
+Q56. What is Focal Loss and what problem does it address?
+A:   Focal Loss = -alpha*(1-p)^gamma * log(p).
+     It down-weights the contribution of easy, well-classified examples and focuses
+     training on hard, misclassified examples. For deforestation detection (class
+     imbalance), it helps the model focus on confusing boundary pixels rather than
+     being dominated by the large number of easy forest pixels.
+
+Q57. How would you mathematically justify the choice of +/-30 error days in
+     _segment_wise?
+A:   The +/-30 days buffer approximates the typical revisit time of Sentinel-1
+     (6-12 days per orbit) multiplied by an uncertainty factor. Deforestation
+     labels from reference datasets (e.g., PRODES) often have monthly resolution,
+     so a +/-30-day window ensures images that temporally overlap with the event
+     are included. It is a design hyperparameter that trades off between including
+     relevant context and reducing noisy, irrelevant observations.
+
+Q58. What are the limitations of using BraDD-S1TS as a benchmark for future work?
+A:   - Geographic bias: All samples are from the Brazilian Amazon, limiting
+       generalizability to other tropical forests (Congo, Southeast Asia).
+     - Sensor-specific: Only Sentinel-1 C-Band; different results possible with
+       L-Band SAR (ALOS-2) or multi-spectral sensors.
+     - Label source dependency: Labels from existing deforestation databases
+       may contain errors or temporal imprecision.
+     - Cloud-free optical data exclusion: Fusing SAR with optical imagery
+       (when available) could improve performance further.
+
+Q59. If you had to extend this project to detect not just deforestation but
+     also forest degradation (partial canopy loss), what changes would you make?
+A:   1. Reframe as a multi-class segmentation problem (Forest / Degraded / Deforested).
+     2. Acquire degradation-labeled data (harder to annotate than clear-cuts).
+     3. Potentially add Sentinel-2 optical imagery in cloud-free windows as a
+        complementary modality.
+     4. Incorporate canopy density metrics (e.g., L-Band SAR backscatter or
+        LiDAR-derived CHM) since C-Band SAR is less sensitive to partial canopy loss.
+     5. Adjust the loss function to handle ordinal class relationships
+        (Forest > Degraded > Deforested).
+
+Q60. How does the model generalize across different deforestation patterns
+     (e.g., large agricultural clearing vs. selective logging)?
+A:   UTAE learns spatial features at multiple scales through its encoder-decoder
+     structure and attends to temporally relevant observations. Because BraDD-S1TS
+     includes approximately 25,000 samples covering varied deforestation patterns
+     across the Brazilian Amazon, the model is exposed to diverse signatures during
+     training. However, generalization is not guaranteed outside the training
+     distribution — this is why the dataset includes both "close" and "far" splits
+     to test geographic generalization.
+
+Q61. What would happen if you trained this model on a dataset where the class
+     imbalance is extreme (e.g., 99% forest, 1% deforestation)?
+A:   The model would likely achieve high accuracy by predicting everything as
+     "forest," but completely fail at detecting deforestation (IoU ~= 0 for the
+     deforested class). Mitigation strategies include: class-weighted loss,
+     Focal Loss, oversampling of minority class, under-sampling majority class,
+     and using IoU/F1 (not accuracy) as the primary metric.
+
+Q62. What is the computational complexity of processing a time series of T
+     images through UTAE, and how does _segment_wise reduce it?
+A:   Processing all T images together scales with O(T^2) for attention computation.
+     _segment_wise breaks the full sequence into smaller sub-sequences (one per
+     label interval), each containing only the images within +/-30 days of that
+     interval. This significantly reduces the effective T per forward pass,
+     lowering memory requirements and computational cost, while also providing
+     a more temporally focused prediction.
+
+Q63. What are the key differences between semantic segmentation and change
+     detection, and how does this project combine both?
+A:   - Semantic segmentation: Classifies each pixel into a category at a single
+       time point (e.g., forest or non-forest in one image).
+     - Change detection: Identifies pixels that changed class between two or more
+       time points.
+     This project combines both: UTAE performs semantic segmentation on SAR time
+     series, but the ForwardFunction's change detection logic computes transitions
+     between consecutive timestep predictions, making it a temporal segmentation
+     and change detection hybrid.
+
+Q64. How would you validate that the model is learning genuine deforestation
+     signals and not spurious correlations in the training data?
+A:   - Verify that attention weights focus on time steps where backscatter changes
+       consistent with forest removal (lower VV/VH from smooth bare soil).
+     - Perform ablation studies: remove temporal context and check if performance
+       drops significantly (proving temporal reasoning matters).
+     - Use saliency maps / Grad-CAM to inspect which image regions and time steps
+       drive predictions.
+     - Validate against independent ground truth: field surveys, high-resolution
+       optical imagery checked manually, or PRODES reference data held out
+       from training.
+
+Q65. What is the significance of publishing BraDD-S1TS alongside the paper,
+     and what are the ethical considerations of making such satellite data public?
+A:   Publishing the dataset enables reproducibility, fair benchmarking, and
+     community-driven improvements.
+     Ethical considerations:
+     - Positive: Enables global deforestation monitoring, supports policy enforcement
+       (REDD+ programme), benefits indigenous land protection efforts.
+     - Negative: Detailed deforestation data could theoretically be misused by
+       illegal loggers to identify enforcement gaps or patrol blind spots.
+     - The dataset itself is SAR-based and does not include personally identifiable
+       information, which reduces direct privacy concerns.
+     - Data sovereignty: Indigenous territories are included; consultation with
+       relevant communities would be the ethical standard for responsible release.
+
+
+================================================================================
+ BONUS: QUICK-FIRE TECHNICAL QUESTIONS
+================================================================================
+
+Q.  What does BraDD-S1TS stand for?
+A:  Brazilian Deforestation Detection - Sentinel-1 Time Series
+
+Q.  What Python deep learning library wraps the training loop?
+A:  PyTorch Lightning
+
+Q.  What is the output shape for _segment_wise?
+A:  [B, t-1, L, H, W] — Batch, Segments, Labels, Height, Width
+
+Q.  What year was the ISPRS paper published?
+A:  2023
+
+Q.  What is the conference/journal of the paper?
+A:  ISPRS Annals of the Photogrammetry, Remote Sensing and Spatial
+    Information Sciences (ISPRS Annals 2023)
+
+Q.  Name the two main SAR advantages exploited in this project.
+A:  (1) Cloud penetration — works through cloud cover (critical for tropics)
+    (2) Temporal sensitivity — detects backscatter changes indicating land cover change
+
+Q.  Name one prior/baseline method this project outperforms.
+A:  Traditional statistical approaches and classical ML on multi-spectral optical imagery.
+
+Q.  What is the receptive field concept in CNNs?
+A:  The region of the input that influences a particular output neuron.
+    A larger receptive field captures broader contextual information.
+
+Q.  What does the collate_fn do in a PyTorch DataLoader?
+A:  Merges a list of individual samples into a mini-batch tensor, handling
+    variable-length sequences through zero-padding.
+
+Q.  What are the three phases of dataset usage in this project?
+A:  Train, Validation, and Test.
+
+
+================================================================================
+ THESIS DEFENSE PREPARATION CHECKLIST
+================================================================================
+
+Be ready to:
+  1. Draw the UTAE architecture from memory
+     (encoder -> temporal attention encoder -> decoder with skip connections)
+  2. Explain why IoU is used instead of accuracy
+  3. Explain why SAR is preferred over optical for tropical deforestation monitoring
+  4. Walk through _segment_wise logic step by step on a whiteboard
+  5. Critique your own method's limitations honestly
+     (geographic bias, C-Band sensitivity limits, label noise)
+  6. Propose future work directions with clear rationale
+  7. Explain the BraDD-S1TS dataset creation process
+  8. Discuss the significance of the 13.7 pp IoU improvement
+  9. Define and compare: IoU, Dice, Focal Loss mathematically
+ 10. Explain temporal attention vs. LSTM trade-offs
+
+
+================================================================================
+ END OF INTERVIEW QUESTIONS
+================================================================================
